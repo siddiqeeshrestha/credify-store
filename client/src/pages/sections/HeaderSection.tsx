@@ -2,8 +2,18 @@ import React from "react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/lib/api";
 
 export const HeaderSection = (): JSX.Element => {
+  const { user, isAuthenticated, logout } = useAuth();
+  const { data: cartData, isLoading: cartLoading } = useCart();
+  
+  // Calculate cart totals
+  const cart = cartData?.cart;
+  const cartItems = cart?.items || [];
+  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalAmount = cartItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
   const topBarItems = [
     {
       icon: "/figmaAssets/group-1.svg",
@@ -141,16 +151,18 @@ export const HeaderSection = (): JSX.Element => {
                       alt="Mdi cart outline"
                       src="/figmaAssets/mdi-cart-outline.svg"
                     />
-                    <Badge className="absolute top-[-3px] left-[14px] md:left-[17px] w-4 h-4 md:w-5 md:h-5 flex items-center justify-center bg-[#98042d] rounded-2xl border border-white text-[8px] md:text-[10px] p-0">
-                      2
-                    </Badge>
+                    {totalItems > 0 && (
+                      <Badge className="absolute top-[-3px] left-[14px] md:left-[17px] w-4 h-4 md:w-5 md:h-5 flex items-center justify-center bg-[#98042d] rounded-2xl border border-white text-[8px] md:text-[10px] p-0">
+                        {totalItems > 99 ? '99+' : totalItems}
+                      </Badge>
+                    )}
                   </div>
                   <div className="hidden md:flex flex-col items-start gap-1">
                     <div className="w-[61px] mt-[-1.00px] [font-family:'Roboto',Helvetica] font-medium text-[#0e0d11] text-[11px] tracking-[0] leading-[13.2px]">
                       Credify Cart
                     </div>
                     <div className="[font-family:'Roboto',Helvetica] text-black leading-[14px] font-medium text-sm tracking-[0] whitespace-nowrap">
-                      ৳1120.00
+                      {cartLoading ? "Loading..." : `৳${Math.floor(totalAmount)}`}
                     </div>
                   </div>
                 </div>
@@ -158,19 +170,44 @@ export const HeaderSection = (): JSX.Element => {
             </Link>
 
             <div className="flex items-center gap-[18px]">
-              <Link href="/login">
-                <Button className="h-auto flex items-center justify-center gap-1.5 px-2 md:px-4 py-2 md:py-2.5 bg-[#98042d] rounded-xl hover:bg-[#98042d]/90">
-                  <span className="flex items-center justify-center h-7 mt-[-1.00px] [font-family:'Exo_2',Helvetica] font-bold text-white text-[12px] md:text-[15px] text-center tracking-[0] leading-[27.8px] whitespace-nowrap">
-                    <span className="hidden sm:inline">Login | Register</span>
-                    <span className="sm:hidden">Login</span>
-                  </span>
-                  <img
-                    className="w-3 h-3 md:w-4 md:h-4"
-                    alt="Material symbols"
-                    src="/figmaAssets/material-symbols-login.svg"
-                  />
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-2">
+                  <Link href="/profile">
+                    <Button className="h-auto flex items-center justify-center gap-1.5 px-2 md:px-4 py-2 md:py-2.5 bg-[#98042d] rounded-xl hover:bg-[#98042d]/90">
+                      <span className="flex items-center justify-center h-7 mt-[-1.00px] [font-family:'Exo_2',Helvetica] font-bold text-white text-[12px] md:text-[15px] text-center tracking-[0] leading-[27.8px] whitespace-nowrap">
+                        <span className="hidden sm:inline">Hi, {user?.name}</span>
+                        <span className="sm:hidden">Profile</span>
+                      </span>
+                      <img
+                        className="w-3 h-3 md:w-4 md:h-4"
+                        alt="User profile"
+                        src="/figmaAssets/material-symbols-login.svg"
+                      />
+                    </Button>
+                  </Link>
+                  <Button 
+                    onClick={logout}
+                    variant="outline"
+                    className="h-auto px-2 md:px-3 py-2 text-[12px] md:text-[14px] border-[#98042d] text-[#98042d] hover:bg-[#98042d] hover:text-white"
+                  >
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <Link href="/login">
+                  <Button className="h-auto flex items-center justify-center gap-1.5 px-2 md:px-4 py-2 md:py-2.5 bg-[#98042d] rounded-xl hover:bg-[#98042d]/90">
+                    <span className="flex items-center justify-center h-7 mt-[-1.00px] [font-family:'Exo_2',Helvetica] font-bold text-white text-[12px] md:text-[15px] text-center tracking-[0] leading-[27.8px] whitespace-nowrap">
+                      <span className="hidden sm:inline">Login | Register</span>
+                      <span className="sm:hidden">Login</span>
+                    </span>
+                    <img
+                      className="w-3 h-3 md:w-4 md:h-4"
+                      alt="Material symbols"
+                      src="/figmaAssets/material-symbols-login.svg"
+                    />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

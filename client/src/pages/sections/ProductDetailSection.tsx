@@ -3,30 +3,43 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Link } from "wouter";
+import { Link, useParams } from "wouter";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useProducts, useProductOptions, useAddToCart, type Product } from "@/lib/api";
+import { ProductOptions } from "@/components/ProductOptions";
+import { ProductImage } from "@/components/ProductImage";
 
 export const ProductDetailSection = (): JSX.Element => {
-  const [selectedAmount, setSelectedAmount] = useState(0);
+  const params = useParams();
+  const productSlug = params.slug;
+  
+  const { data: productsData, isLoading, error } = useProducts();
+  const addToCartMutation = useAddToCart();
+  
   const [quantity, setQuantity] = useState(1);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
-  const vpAmounts = [
-    { id: 0, amount: "475 VP", selected: true },
-    { id: 1, amount: "475 VP", selected: false },
-    { id: 2, amount: "475 VP", selected: false },
-    { id: 3, amount: "475 VP", selected: false },
-    { id: 4, amount: "475 VP", selected: false },
-    { id: 5, amount: "475 VP", selected: false },
-    { id: 6, amount: "475 VP", selected: false },
-    { id: 7, amount: "475 VP", selected: false },
-    { id: 8, amount: "475 VP", selected: false },
-    { id: 9, amount: "475 VP", selected: false },
-  ];
+  // Find the specific product by slug or use the first one if no slug is provided
+  const products = productsData?.products || [];
+  const product = productSlug 
+    ? products.find(p => p.slug === productSlug) || products[0]
+    : products[0];
+
+  // Fetch product options
+  const { data: optionsData } = useProductOptions(product?.id || '');
+  const productOptions = optionsData?.options || [];
+
+  const handleOptionChange = (key: string, value: string) => {
+    setSelectedOptions(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
 
   const reviewData = [
     { label: "Excellent", count: 100, width: "w-full" },
@@ -44,13 +57,50 @@ export const ProductDetailSection = (): JSX.Element => {
     { src: "/figmaAssets/star-5.svg", alt: "Star" },
   ];
 
+  const handleAddToCart = async () => {
+    if (!product) return;
+    
+    try {
+      await addToCartMutation.mutateAsync({
+        productId: product.id,
+        quantity: quantity
+      });
+      alert("Product added to cart!");
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      alert("Failed to add product to cart. Please try again.");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading product...</div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Product not found</h2>
+          <Link href="/">
+            <Button>Back to Home</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center gap-16 relative self-stretch w-full flex-[0_0_auto]">
       <section className="flex items-start justify-center gap-[100px] px-0 py-16 relative self-stretch w-full flex-[0_0_auto] [background:url(../figmaAssets/product.png)_50%_50%_/_cover]">
-        <img
-          className="relative flex-[0_0_auto] mt-[-19.00px]"
-          alt="Frame"
-          src="/figmaAssets/frame-176.svg"
+        <ProductImage
+          className="relative flex-[0_0_auto] mt-[-19.00px] max-w-md max-h-96 object-cover rounded-lg shadow-lg"
+          alt={product.name}
+          src={product.images?.[0] || "/figmaAssets/frame-176.svg"}
+          fallbackSrc="/figmaAssets/frame-176.svg"
         />
 
         <div className="w-[549px] items-start gap-[135px] flex relative">
@@ -58,7 +108,7 @@ export const ProductDetailSection = (): JSX.Element => {
             <header className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
               <div className="flex flex-col h-[30px] items-start pl-0 pr-[200px] py-0 relative self-stretch w-full">
                 <h1 className="mr-[-71.00px] [font-family:'Exo',Helvetica] font-bold text-[#363636] text-4xl leading-[30px] relative flex items-center justify-center w-fit mt-[-1.00px] tracking-[0] whitespace-nowrap">
-                  Valorant Points Malaysia
+                  {product.name}
                 </h1>
               </div>
 
@@ -68,7 +118,7 @@ export const ProductDetailSection = (): JSX.Element => {
                     variant="secondary"
                     className="flex items-center justify-center mt-[-1.00px] [font-family:'Exo',Helvetica] font-bold text-[#8b8b8b] leading-6 relative w-fit text-sm tracking-[0] whitespace-nowrap bg-transparent border-0 p-0"
                   >
-                    Game currency
+                    {product.tags?.[0] || "Digital Product"}
                   </Badge>
                 </div>
 
@@ -99,77 +149,14 @@ export const ProductDetailSection = (): JSX.Element => {
             </div>
 
             <div className="flex flex-col w-[545px] items-start gap-8 relative flex-[0_0_auto]">
-              <div className="flex flex-col h-[171px] items-start gap-2 relative self-stretch w-full">
-                <div className="relative w-fit mt-[-1.00px] [font-family:'Poppins',Helvetica] font-medium text-black text-base tracking-[0] leading-[normal]">
-                  Select Amount &gt;
-                </div>
-
-                <div className="grid grid-cols-4 grid-rows-3 w-[475px] h-[125px] gap-5 absolute top-8 left-0">
-                  {vpAmounts.map((vp, index) => (
-                    <div
-                      key={vp.id}
-                      className={`relative ${
-                        index === 9
-                          ? "row-[3_/_4] col-[2_/_3]"
-                          : index === 8
-                            ? "row-[3_/_4] col-[1_/_2]"
-                            : index === 7
-                              ? "row-[2_/_3] col-[4_/_5]"
-                              : index === 6
-                                ? "row-[2_/_3] col-[3_/_4]"
-                                : index === 5
-                                  ? "row-[2_/_3] col-[2_/_3]"
-                                  : index === 4
-                                    ? "row-[2_/_3] col-[1_/_2]"
-                                    : index === 3
-                                      ? "row-[1_/_2] col-[4_/_5]"
-                                      : index === 2
-                                        ? "row-[1_/_2] col-[3_/_4]"
-                                        : index === 1
-                                          ? "row-[1_/_2] col-[2_/_3]"
-                                          : "row-[1_/_2] col-[1_/_2]"
-                      } w-[108px] h-[38px] flex flex-col items-start pt-2.5 pb-0 px-0`}
-                    >
-                      <Button
-                        variant="outline"
-                        className={`flex flex-col w-[108px] h-8 items-center justify-center px-[21px] py-px relative mb-[-4.00px] rounded-[200px] border border-solid border-[#dbdbdb] shadow-[0px_1px_2px_#0000000d] ${
-                          vp.selected
-                            ? "bg-[#98042d] text-[#ffffff]"
-                            : "bg-[#ffffff] text-[#000000d9]"
-                        }`}
-                        onClick={() => setSelectedAmount(vp.id)}
-                      >
-                        <div className="relative flex items-center justify-center w-fit [font-family:'Roboto',Helvetica] font-normal text-sm text-center tracking-[0] leading-[26px] whitespace-nowrap">
-                          {vp.amount}
-                        </div>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
-                <div className="relative self-stretch mt-[-1.00px] [font-family:'Poppins',Helvetica] font-medium text-black text-base tracking-[0] leading-[normal]">
-                  IGN#TAG &gt;
-                </div>
-
-                <div className="flex flex-col h-[55px] items-start gap-4 relative self-stretch w-full">
-                  <div className="flex w-[330px] h-[55px] items-center gap-[7px] px-4 py-3 relative bg-[#ffffff] rounded-xl border border-solid border-[#191a23]">
-                    <div className="flex items-center gap-[7px] relative flex-1 grow">
-                      <img
-                        className="relative flex-[0_0_auto]"
-                        alt="Icon"
-                        src="/figmaAssets/icon.svg"
-                      />
-
-                      <Input
-                        placeholder="Enter your ingame name"
-                        className="relative w-[185.14px] [font-family:'Poppins',Helvetica] font-medium text-black text-[13px] tracking-[0] leading-[normal] border-0 p-0 h-auto bg-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Dynamic Product Options */}
+              <ProductOptions
+                productId={product?.id || ''}
+                options={productOptions}
+                selectedValues={selectedOptions}
+                onOptionChange={handleOptionChange}
+                className="w-full"
+              />
 
               <div className="flex flex-col items-start gap-4 relative self-stretch w-full flex-[0_0_auto]">
                 <div className="flex flex-col items-start gap-4 relative self-stretch w-full flex-[0_0_auto]">
@@ -185,15 +172,17 @@ export const ProductDetailSection = (): JSX.Element => {
                         <div className="flex flex-col w-40 items-start relative">
                           <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
                             <div className="relative flex items-center justify-center w-fit mt-[-1.00px] [font-family:'Inter',Helvetica] font-bold text-[#ffffff] text-3xl tracking-[0] leading-9 whitespace-nowrap">
-                              ৳1120
+                              ${(parseFloat(product.price) * quantity).toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto] opacity-75">
-                            <div className="relative flex items-center justify-center w-fit mt-[-1.00px] [font-family:'Inter',Helvetica] font-semibold text-[#ffffff] text-sm tracking-[0] leading-5 line-through whitespace-nowrap">
-                              ৳1120
+                          {product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price) && (
+                            <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto] opacity-75">
+                              <div className="relative flex items-center justify-center w-fit mt-[-1.00px] [font-family:'Inter',Helvetica] font-semibold text-[#ffffff] text-sm tracking-[0] leading-5 line-through whitespace-nowrap">
+                                ${(parseFloat(product.originalPrice) * quantity).toFixed(2)}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
 
                         <div className="inline-flex items-center relative flex-[0_0_auto]">
@@ -250,9 +239,11 @@ export const ProductDetailSection = (): JSX.Element => {
                   <Button
                     variant="outline"
                     className="flex flex-col w-60 items-start relative mr-[-4.00px] rounded-[10px] border-2 border-solid border-black shadow-[0px_0px_30px_#1877f2] h-auto"
+                    onClick={handleAddToCart}
+                    disabled={addToCartMutation.isPending}
                   >
                     <div className="relative flex items-center justify-center self-stretch h-[50px] mt-[-2.00px] [font-family:'Exo',Helvetica] font-semibold text-black text-lg text-center tracking-[0] leading-[normal]">
-                      Add To Cart
+                      {addToCartMutation.isPending ? "Adding..." : "Add To Cart"}
                     </div>
                   </Button>
                 </div>
@@ -310,7 +301,7 @@ export const ProductDetailSection = (): JSX.Element => {
               </span>
 
               <span className="font-medium text-[#333333] text-base leading-[30px]">
-                Valorant Points for in-game purchases, skins, and battle pass
+                {product.description || "Premium digital product for your gaming experience"}
                 <br />
               </span>
 
@@ -319,7 +310,7 @@ export const ProductDetailSection = (): JSX.Element => {
               </span>
 
               <span className="font-semibold text-black text-xl leading-[25px]">
-                What&#39;s Included:
+                Product Details:
                 <br />
               </span>
 

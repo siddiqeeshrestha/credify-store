@@ -5,24 +5,44 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export const LoginSection = (): JSX.Element => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
-    
+    setError('');
     setIsLoading(true);
+    
+    if (!username || !password) {
+      setError('Please fill in all fields');
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-      await login(email, password);
+      await login(username, password);
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+      });
       setLocation('/profile'); // Redirect to profile page
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (error: any) {
+      setError(error.message || 'Login failed. Please try again.');
+      toast({
+        title: "Login failed",
+        description: error.message || "Invalid credentials. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -52,20 +72,28 @@ export const LoginSection = (): JSX.Element => {
 
             {/* Form Fields */}
             <div className="flex flex-col items-end justify-center gap-4 md:gap-6 relative self-stretch w-full flex-[0_0_auto]">
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center gap-2 w-full p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-700">{error}</span>
+                </div>
+              )}
+
               {/* Username/Email Field */}
               <div className="flex flex-col items-start gap-3 md:gap-4 relative self-stretch w-full flex-[0_0_auto]">
                 <Label className="relative flex items-center justify-center w-fit mt-[-1.00px] [font-family:'Roboto',Helvetica] font-normal text-sm md:text-base tracking-[0.16px] leading-4 whitespace-nowrap">
                   <span className="text-black tracking-[0.03px]">
-                    User name or email address{" "}
+                    Username or email address{" "}
                   </span>
                   <span className="text-[#ea4335] tracking-[0.03px]">*</span>
                 </Label>
 
                 <div className="relative self-stretch w-full h-10 md:h-12">
                   <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     required
                     className="w-full h-full bg-[#eeeeee] rounded-xl border border-solid text-[#4e4e4e] [font-family:'Roboto',Helvetica] font-normal text-sm md:text-base tracking-[0.16px] leading-4 px-3 md:px-[15px] py-2 md:py-3 placeholder:text-[#4e4e4e]"
                     placeholder="Enter your username or email address here..."
@@ -84,18 +112,32 @@ export const LoginSection = (): JSX.Element => {
 
                 <div className="relative self-stretch w-full h-10 md:h-12">
                   <Input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full h-full bg-[#eeeeee] rounded-xl border border-solid text-[#4e4e4e] [font-family:'Roboto',Helvetica] font-normal text-sm md:text-base tracking-[0.16px] leading-4 px-3 md:px-[15px] py-2 md:py-3 placeholder:text-[#4e4e4e]"
+                    className="w-full h-full bg-[#eeeeee] rounded-xl border border-solid text-[#4e4e4e] [font-family:'Roboto',Helvetica] font-normal text-sm md:text-base tracking-[0.16px] leading-4 px-3 md:px-[15px] py-2 md:py-3 pr-12 placeholder:text-[#4e4e4e]"
                     placeholder="At least 8 characters"
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-500" />
+                    )}
+                  </Button>
                 </div>
               </div>
 
               {/* Forgot Password Link */}
               <Button
+                type="button"
                 variant="link"
                 className="h-auto flex items-center justify-center w-fit [font-family:'Roboto',Helvetica] font-normal text-link text-sm md:text-base text-center tracking-[0.16px] leading-4 whitespace-nowrap p-0"
               >

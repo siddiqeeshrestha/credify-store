@@ -1,29 +1,28 @@
-import React from "react";
-import { Link } from "wouter";
+import React, { useEffect } from "react";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { useCart, useUpdateCartItem, useRemoveFromCart } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const CartSection = (): JSX.Element => {
-  const cartItems = [
-    {
-      id: 1,
-      name: "Valorant Points Malaysia",
-      region: "All Regions",
-      price: 560,
-      quantity: 2,
-      image: "/figmaAssets/image-20.png",
-    },
-    {
-      id: 2,
-      name: "Valorant Points Malaysia",
-      region: "All Regions",
-      price: 1200,
-      quantity: 1,
-      image: "/figmaAssets/image-20.png",
-    },
-  ];
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { data: cartData, isLoading } = useCart();
+  const updateCartItem = useUpdateCartItem();
+  const removeFromCart = useRemoveFromCart();
+  const [, setLocation] = useLocation();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation('/login');
+    }
+  }, [isAuthenticated, authLoading, setLocation]);
+  
+  const cart = cartData?.cart;
+  const cartItems = cart?.items || [];
 
   const orderSteps = [
     { number: 1, title: "Your Cart", active: true },
@@ -32,9 +31,59 @@ export const CartSection = (): JSX.Element => {
     { number: 4, title: "Confirmed", active: false },
   ];
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
   const tax = Math.round(subtotal * 0.1);
   const total = subtotal + tax;
+
+  const handleQuantityChange = (productId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart.mutate(productId);
+    } else {
+      updateCartItem.mutate({ productId, quantity: newQuantity });
+    }
+  };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-lg">Redirecting to login...</div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-lg">Loading cart...</div>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <section className="flex flex-col items-center gap-8 px-4 py-8 w-full">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
+          <p className="text-gray-600 mb-6">Start shopping to add items to your cart!</p>
+          <Link href="/">
+            <Button className="bg-[#98042d] hover:bg-[#98042d]/90">
+              Continue Shopping
+            </Button>
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col items-center gap-8 px-4 py-8 w-full">
@@ -72,28 +121,40 @@ export const CartSection = (): JSX.Element => {
                     <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
                       <img
                         className="w-16 h-16 rounded-lg object-cover"
-                        alt={item.name}
-                        src={item.image}
+                        alt={item.product.name}
+                        src={item.product.images?.[0] || "/api/placeholder/100/100"}
                       />
                       
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                        <p className="text-sm text-gray-500">{item.region}</p>
+                        <h3 className="font-semibold text-gray-900">{item.product.name}</h3>
+                        <p className="text-sm text-gray-500">{item.product.description || "Digital Product"}</p>
                         
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" className="w-8 h-8 p-0">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-8 h-8 p-0"
+                              onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                              disabled={updateCartItem.isPending || removeFromCart.isPending}
+                            >
                               -
                             </Button>
                             <span className="w-8 text-center">{item.quantity}</span>
-                            <Button variant="outline" size="sm" className="w-8 h-8 p-0">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-8 h-8 p-0"
+                              onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                              disabled={updateCartItem.isPending}
+                            >
                               +
                             </Button>
                           </div>
                           
                           <div className="text-right">
-                            <p className="font-bold text-[#98042d]">৳{item.price * item.quantity}</p>
-                            <p className="text-xs text-gray-500">৳{item.price} each</p>
+                            <p className="font-bold text-[#98042d]">${(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
+                            <p className="text-xs text-gray-500">${parseFloat(item.product.price).toFixed(2)} each</p>
                           </div>
                         </div>
                       </div>
@@ -129,12 +190,12 @@ export const CartSection = (): JSX.Element => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
-                    <span>৳{subtotal}</span>
+                    <span>${subtotal.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span>Tax (10%):</span>
-                    <span>৳{tax}</span>
+                    <span>${tax.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between">
@@ -146,16 +207,17 @@ export const CartSection = (): JSX.Element => {
                   
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total:</span>
-                    <span className="text-[#98042d]">৳{total}</span>
+                    <span className="text-[#98042d]">${total.toFixed(2)}</span>
                   </div>
                 </div>
                 
                 <div className="mt-6 space-y-3">
-                  <Link href="/order-confirmed">
-                    <Button className="w-full bg-[#98042d] hover:bg-[#98042d]/90">
-                      Proceed to Checkout
-                    </Button>
-                  </Link>
+                  <Button 
+                    onClick={() => setLocation('/checkout/information')}
+                    className="w-full bg-[#98042d] hover:bg-[#98042d]/90"
+                  >
+                    Proceed to Checkout
+                  </Button>
                   
                   <div className="text-center">
                     <p className="text-xs text-gray-500 mb-2">We accept:</p>

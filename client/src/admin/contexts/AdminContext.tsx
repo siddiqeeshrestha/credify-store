@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { authApi } from '../../lib/api';
 
 interface Admin {
   id: string;
   email: string;
   name: string;
-  role: 'super_admin' | 'admin';
+  role: 'admin';
 }
 
 interface AdminContextType {
@@ -12,6 +13,7 @@ interface AdminContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  isLoading: boolean;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -29,38 +31,64 @@ interface AdminProviderProps {
 }
 
 export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
-  const [admin, setAdmin] = useState<Admin | null>(() => {
-    // Check if admin is stored in localStorage
-    const storedAdmin = localStorage.getItem('admin');
-    return storedAdmin ? JSON.parse(storedAdmin) : null;
-  });
+  const [admin, setAdmin] = useState<Admin | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!admin;
 
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await authApi.me();
+        if (response.user && response.user.role === 'admin') {
+          setAdmin({
+            id: response.user.id,
+            email: response.user.email,
+            name: `${response.user.firstName} ${response.user.lastName}`,
+            role: 'admin'
+          });
+        }
+      } catch (error) {
+        console.log('Not authenticated or not admin');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   const login = async (email: string, password: string) => {
-    // Mock admin authentication - in real app, this would be an API call
-    if (email.includes('@admin.') || password === 'admin123') {
-      const mockAdmin: Admin = {
-        id: '1',
-        email: email,
-        name: 'Admin User',
-        role: 'super_admin',
-      };
-      
-      setAdmin(mockAdmin);
-      localStorage.setItem('admin', JSON.stringify(mockAdmin));
-    } else {
-      throw new Error('Invalid credentials');
+    try {
+      const response = await authApi.login({ username: email, password });
+      if (response.user && response.user.role === 'admin') {
+        setAdmin({
+          id: response.user.id,
+          email: response.user.email,
+          name: `${response.user.firstName} ${response.user.lastName}`,
+          role: 'admin'
+        });
+      } else {
+        throw new Error('Admin access required');
+      }
+    } catch (error) {
+      throw error;
     }
   };
 
-  const logout = () => {
-    setAdmin(null);
-    localStorage.removeItem('admin');
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setAdmin(null);
+    }
   };
 
   return (
-    <AdminContext.Provider value={{ admin, isAuthenticated, login, logout }}>
+    <AdminContext.Provider value={{ admin, isAuthenticated, login, logout, isLoading }}>
       {children}
     </AdminContext.Provider>
   );

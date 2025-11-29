@@ -1,10 +1,36 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import path from "path";
+import { fileURLToPath } from "url";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  rolling: true, // Reset the expiration on each request
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // Helps with cookie persistence
+  }
+}));
+
+app.use(express.json({ limit: '10mb' })); // Increased limit for image uploads
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Serve uploads directory statically
+const uploadsPath = path.join(__dirname, '..', 'client', 'public', 'uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 app.use((req, res, next) => {
   const start = Date.now();

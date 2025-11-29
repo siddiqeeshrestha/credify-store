@@ -10,8 +10,8 @@ import {
 
 export const ProfileManagementSection = (): JSX.Element => {
   const breadcrumbItems = [
-    { label: "Home", href: "#" },
-    { label: "My Profile", href: "#", isActive: true },
+    { label: "Home", href: "/" },
+    { label: "My Profile", href: "/profile", isActive: true },
   ];
 
   return (

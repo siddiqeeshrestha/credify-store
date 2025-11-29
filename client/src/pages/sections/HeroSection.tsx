@@ -30,11 +30,11 @@ export const HeroSection = (): JSX.Element => {
   ];
 
   return (
-    <section className="flex flex-col items-center relative self-stretch w-full flex-[0_0_auto] [background:url(..//figmaAssets/banner.png)_50%_50%_/_cover]">
-      <div className="flex flex-col items-center justify-center gap-12 px-0 py-8 relative self-stretch w-full flex-[0_0_auto]">
-        <div className="relative w-[1240px] h-[450px] rounded-[32px] shadow-[0px_2px_2px_#00000099] [background:url(..//figmaAssets/image.png)_50%_50%_/_cover]" />
+    <section className="flex flex-col items-center relative w-full min-h-[750px] [background:url(..//figmaAssets/banner-good.png)_center_center_/_100%_auto] bg-no-repeat">
+      <div className="flex flex-col items-center justify-center gap-12 px-4 py-8 relative w-full max-w-[1240px] flex-[0_0_auto]">
+        <div className="relative w-full max-w-[1240px] h-[450px] rounded-[32px] shadow-[0px_2px_2px_#00000099] [background:url(..//figmaAssets/image.png)_50%_50%_/_cover]" />
 
-        <Card className="w-[1240px] bg-gray-scalewhite rounded-2xl shadow-[0px_2px_2px_#00000099]">
+        <Card className="w-full max-w-[1240px] bg-gray-scalewhite rounded-2xl shadow-[0px_2px_2px_#00000099]">
           <CardContent className="flex items-center justify-around gap-[61px] px-0 py-10">
             <div className="flex items-center justify-center gap-16 relative flex-1 grow">
               {features.map((feature, index) => (

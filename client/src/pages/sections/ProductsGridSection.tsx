@@ -1,46 +1,73 @@
 import React from "react";
-import { Link } from "wouter";
+import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useProducts, useAddToCart, useCategories } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { ProductImage } from "@/components/ProductImage";
 
 export const ProductsGridSection = (): JSX.Element => {
-  const products = [
-    {
-      id: 1,
-      title: "Valorant Points",
-      price: "350৳",
-      image: "/figmaAssets/image-20.png",
-      buttonIcon: "/figmaAssets/primary-button-4.svg",
-    },
-    {
-      id: 2,
-      title: "Valorant Points",
-      price: "350৳",
-      image: "/figmaAssets/image-20.png",
-      buttonIcon: "/figmaAssets/primary-button-4.svg",
-    },
-    {
-      id: 3,
-      title: "Valorant Points",
-      price: "350৳",
-      image: "/figmaAssets/image-20.png",
-      buttonIcon: "/figmaAssets/primary-button-4.svg",
-    },
-    {
-      id: 4,
-      title: "Valorant Points",
-      price: "350৳",
-      image: "/figmaAssets/image-20.png",
-      buttonIcon: "/figmaAssets/primary-button-4.svg",
-    },
-    {
-      id: 5,
-      title: "Valorant Points",
-      price: "350৳",
-      image: "/figmaAssets/image-20.png",
-      buttonIcon: "/figmaAssets/primary-button-4.svg",
-    },
-  ];
+  const params = useParams();
+  const categorySlug = params.slug;
+  
+  const { data: productsData, isLoading, error } = useProducts(categorySlug);
+  const { data: categoriesData } = useCategories();
+  const addToCart = useAddToCart();
+  const { toast } = useToast();
+
+  // Find the current category if filtering
+  const categories = categoriesData?.categories || [];
+  const currentCategory = categorySlug 
+    ? categories.find(cat => cat.slug === categorySlug)
+    : null;
+
+  const handleAddToCart = async (productId: string, productName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await addToCart.mutateAsync({ productId, quantity: 1 });
+      toast({
+        title: "Added to cart",
+        description: `${productName} has been added to your cart.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <section className="flex flex-col items-center gap-12 px-4 md:px-0 py-8 w-full">
+        <div className="flex flex-col max-w-[1240px] w-full items-start gap-12">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="animate-pulse">
+                <div className="bg-gray-200 rounded-2xl aspect-square mb-4"></div>
+                <div className="bg-gray-200 h-4 rounded mb-2"></div>
+                <div className="bg-gray-200 h-6 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="flex flex-col items-center gap-12 px-4 md:px-0 py-8 w-full">
+        <div className="text-center text-red-500">
+          Failed to load products. Please try again later.
+        </div>
+      </section>
+    );
+  }
+
+  const products = productsData?.products || [];
 
   return (
     <section className="flex flex-col items-center gap-12 px-4 md:px-0 py-8 w-full">
@@ -48,11 +75,11 @@ export const ProductsGridSection = (): JSX.Element => {
                 <header className="flex flex-col sm:flex-row items-start sm:items-end justify-between w-full gap-4">
           <div className="flex max-w-full sm:max-w-[500px] gap-1.5 flex-col items-start">
             <div className="mt-[-1.00px] [font-family:'Roboto',Helvetica] font-semibold text-[#1e1e1e] text-lg sm:text-xl tracking-[0] leading-[25px]">
-              MORE PRODUCTS
+              {currentCategory ? currentCategory.name.toUpperCase() : 'MORE PRODUCTS'}
             </div>
 
             <h2 className="[font-family:'Roboto',Helvetica] font-bold text-[#1e1e1e] text-2xl sm:text-3xl tracking-[0] leading-[25px]">
-              HUGE COLLECTIONS
+              {currentCategory ? `Browse ${currentCategory.name}` : 'HUGE COLLECTIONS'}
             </h2>
           </div>
 
@@ -65,37 +92,61 @@ export const ProductsGridSection = (): JSX.Element => {
 
         <div className="flex flex-col items-center gap-16 w-full">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full max-w-[1240px]">
-            {products.map((product) => (
-              <Link key={product.id} href={`/product/${product.id}`}>
-                <Card
-                  className="inline-flex flex-col items-start justify-end gap-[18px] p-4 bg-white rounded-2xl overflow-hidden border-[1.75px] border-solid border-[#d8d9e0] shadow-[0px_4px_4px_#0000000d] w-full cursor-pointer hover:shadow-lg transition-shadow"
-                >
-                <CardContent className="p-0 flex flex-col gap-[18px] w-full">
-                  <img
-                    className="w-full aspect-square rounded-2xl object-cover"
-                    alt="Product image"
-                    src={product.image}
-                  />
-                  <div className="flex flex-col items-start gap-2 w-full">
-                    <div className="flex flex-col items-start gap-[10.49px] px-2.5 py-0 w-full">
-                      <h3 className="mt-[-1.75px] [font-family:'Roboto',Helvetica] font-semibold text-[#0e0d11] text-lg tracking-[0] leading-[21.6px]">
-                        {product.title}
-                      </h3>
-                    </div>
-                    <div className="flex items-center justify-between px-2.5 py-0 w-full">
-                      <div className="inline-flex flex-col items-start gap-1.5">
-                        <div className="mt-[-1.75px] [font-family:'Roboto',Helvetica] font-semibold text-[#0e0d11] text-base tracking-[0] leading-[19.2px]">
-                          {product.price}
-                        </div>
-                      </div>
-                      <img
-                        className="w-10 h-10"
-                        alt="Primary button"
-                        src={product.buttonIcon}
+            {products.slice(5, 10).map((product) => (
+              <Link key={product.id} href={`/product/${product.slug}`}>
+                <Card className="inline-flex flex-col items-start justify-end gap-6 p-4 relative flex-[0_0_auto] bg-white rounded-2xl overflow-hidden border-[1.75px] border-solid border-[#d8d9e0] shadow-[0px_4px_4px_#0000000d] cursor-pointer hover:shadow-lg transition-shadow w-full">
+                  <CardContent className="p-0 flex flex-col gap-6 w-full">
+                    <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-gray-100">
+                      <ProductImage
+                        className="w-full h-full object-cover"
+                        alt={product.name}
+                        src={product.images?.[0]}
+                        fallbackSrc="/figmaAssets/image-20.png"
                       />
                     </div>
-                  </div>
-                </CardContent>
+
+                    <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
+                      <div className="flex flex-col items-start gap-[10.49px] px-2.5 py-0 relative self-stretch w-full flex-[0_0_auto]">
+                        <h4 className="[font-family:'Inter',Helvetica] text-lg leading-[21.6px] relative self-stretch mt-[-1.75px] font-semibold text-[#0e0d11] tracking-[0] truncate">
+                          {product.name}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center justify-between px-2.5 py-0 relative self-stretch w-full flex-[0_0_auto]">
+                        <div className="inline-flex flex-col items-start gap-1.5 relative flex-[0_0_auto]">
+                          <span className="relative self-stretch mt-[-1.75px] [font-family:'Inter',Helvetica] font-bold text-[#0e0d11] text-2xl md:text-3xl tracking-[0] leading-[32px]">
+                            ৳{Math.floor(parseFloat(product.price))}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={(e) => handleAddToCart(product.id, product.name, e)}
+                          disabled={addToCart.isPending || product.stock === 0}
+                          className="w-10 h-10 md:w-12 md:h-12 bg-no-repeat bg-center bg-contain border-none cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundImage: "url('/figmaAssets/primary-button-4.svg')"
+                          }}
+                          aria-label={`Add ${product.name} to cart`}
+                        />
+                      </div>
+
+                      {product.stock <= 5 && product.stock > 0 && (
+                        <div className="px-2.5">
+                          <span className="text-xs text-orange-500 font-medium">
+                            Only {product.stock} left in stock!
+                          </span>
+                        </div>
+                      )}
+                      
+                      {product.stock === 0 && (
+                        <div className="px-2.5">
+                          <span className="text-xs text-red-500 font-medium">
+                            Out of stock
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
               </Card>
               </Link>
             ))}

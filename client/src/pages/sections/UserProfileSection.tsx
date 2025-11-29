@@ -11,6 +11,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 
+const navigationTabs = [
+  {
+    id: "profile",
+    label: "Profile Information",
+    icon: "/figmaAssets/iconamoon-profile.svg",
+    href: "/profile",
+    active: true,
+  },
+  {
+    id: "orders",
+    label: "Order History",
+    icon: "/figmaAssets/lsicon-order-done-outline.svg",
+    href: "/orders",
+    active: false,
+  },
+  {
+    id: "redeem",
+    label: "Redeem Code",
+    icon: "/figmaAssets/material-symbols-light-redeem.svg",
+    href: "/redeem-code",
+    active: false,
+  },
+  {
+    id: "settings",
+    label: "Profile Settings",
+    icon: "/figmaAssets/solar-settings-outline.svg",
+    href: "/profile/settings",
+    active: false,
+  },
+];
+
 export const UserProfileSection = (): JSX.Element => {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -56,11 +87,11 @@ export const UserProfileSection = (): JSX.Element => {
             <div className="inline-flex flex-col h-[90px] items-start justify-center gap-3 relative">
               <div className="flex flex-col items-start gap-0.5 relative w-full rounded-lg">
                 <h2 className="relative w-fit mt-[-1.00px] [font-family:'Roboto',Helvetica] font-bold text-[#191919] text-xl text-center tracking-[0] leading-[30px] whitespace-nowrap">
-                  Mister Smith
+                  {user?.name || "User"}
                 </h2>
 
                 <p className="relative w-fit [font-family:'Roboto',Helvetica] font-normal text-[#7f7f7f] text-sm text-center tracking-[0] leading-[21px] whitespace-nowrap">
-                  Customer
+                  {user?.email || "customer@example.com"}
                 </p>
               </div>
 
@@ -86,6 +117,46 @@ export const UserProfileSection = (): JSX.Element => {
           </Button>
         </div>
       </Card>
+
+      {/* Navigation Tabs */}
+      <nav className="flex flex-col items-center gap-8 pt-8 pb-0 px-0 relative self-stretch w-full flex-[0_0_auto]">
+        <div className="inline-flex items-start justify-center gap-8 relative flex-[0_0_auto]">
+          <div className="inline-flex items-start justify-center gap-8 relative flex-[0_0_auto]">
+            {navigationTabs.map((tab) => (
+              <Link key={tab.id} href={tab.href}>
+                <Button
+                  variant={tab.active ? "default" : "secondary"}
+                  className={`flex w-[200px] px-8 py-2.5 rounded-[32px] shadow-[0px_2px_2px_#00000099] items-center justify-center gap-1.5 relative h-auto ${
+                    tab.active
+                      ? "bg-[#98042d] hover:bg-[#98042d]/90 text-white"
+                      : "bg-white hover:bg-gray-50 text-black"
+                  }`}
+                >
+                  <img
+                    className={`relative w-6 h-6 ${tab.id === "profile" ? "ml-[-16.00px]" : tab.id === "settings" ? "ml-[-3.00px]" : ""}`}
+                    alt={tab.label}
+                    src={tab.icon}
+                  />
+
+                  <span
+                    className={`relative flex items-center justify-center h-7 mt-[-1.00px] [font-family:'Roboto',Helvetica] font-bold text-base text-center tracking-[0] leading-[27.8px] whitespace-nowrap ${
+                      tab.id === "profile"
+                        ? "w-[138px] mr-[-16.00px]"
+                        : tab.id === "redeem"
+                          ? "flex-1"
+                          : tab.id === "settings"
+                            ? "w-28 mr-[-3.00px]"
+                            : "w-fit"
+                    }`}
+                  >
+                    {tab.label}
+                  </span>
+                </Button>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </nav>
     </section>
   );
 };

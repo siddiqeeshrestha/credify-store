@@ -1,120 +1,114 @@
 import React, { useState } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon, PhotoIcon, EyeIcon } from '@heroicons/react/24/outline';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  originalPrice?: number;
-  discount?: number;
-  description: string;
-  image: string;
-  stock: number;
-  isActive: boolean;
-  featured: boolean;
-  createdAt: string;
-}
+import { 
+  useProducts, 
+  useCategories,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+  useProductOptions,
+  type Product,
+  type Category
+} from '../../lib/api';
+import { ImageUpload } from '../components/ImageUpload';
+import { ProductOptionsManager } from '../components/ProductOptionsManager';
 
 interface ProductFormData {
   name: string;
-  category: string;
-  price: number;
-  originalPrice: number;
+  categoryId: string;
+  price: string;
+  originalPrice?: string;
   description: string;
-  image: string;
+  images: string[];
   stock: number;
   isActive: boolean;
   featured: boolean;
+  sku?: string;
+  weight?: string;
+  tags?: string[];
+  options: {
+    id?: string;
+    productId?: string;
+    type: 'select' | 'input' | 'checkbox';
+    name: string;
+    key: string;
+    required: boolean;
+    placeholder?: string;
+    options: {
+      label: string;
+      value: string;
+      priceModifier?: number;
+      description?: string;
+    }[];
+    sortOrder: number;
+    isActive: boolean;
+  }[];
 }
 
 export const ProductsManagementPage: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: '1',
-      name: 'Steam Gift Card',
-      category: 'Gaming',
-      price: 50,
-      originalPrice: 60,
-      discount: 17,
-      description: 'Steam digital gift card for gaming purchases',
-      image: '/api/placeholder/200/150',
-      stock: 100,
-      isActive: true,
-      featured: true,
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'Netflix Premium',
-      category: 'Entertainment',
-      price: 15,
-      description: 'Netflix premium subscription voucher',
-      image: '/api/placeholder/200/150',
-      stock: 50,
-      isActive: true,
-      featured: false,
-      createdAt: '2024-01-12',
-    },
-    {
-      id: '3',
-      name: 'Amazon Gift Card',
-      category: 'Shopping',
-      price: 25,
-      originalPrice: 30,
-      discount: 17,
-      description: 'Amazon digital gift card',
-      image: '/api/placeholder/200/150',
-      stock: 0,
-      isActive: false,
-      featured: false,
-      createdAt: '2024-01-10',
-    },
-  ]);
+  // React Query hooks
+  const { data: productsData, isLoading: productsLoading, error: productsError } = useProducts();
+  const { data: categoriesData } = useCategories();
+  const createProductMutation = useCreateProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+  
+  const products = productsData?.products || [];
+  const categories = categoriesData?.categories || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
-    category: '',
-    price: 0,
-    originalPrice: 0,
+    categoryId: '',
+    price: '',
+    originalPrice: '',
     description: '',
-    image: '',
+    images: [],
     stock: 0,
     isActive: true,
     featured: false,
+    sku: '',
+    weight: '',
+    tags: [],
+    options: [],
   });
-
-  const categories = ['Gaming', 'Entertainment', 'Shopping', 'Food & Dining'];
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
       setFormData({
         name: product.name,
-        category: product.category,
+        categoryId: product.categoryId || '',
         price: product.price,
-        originalPrice: product.originalPrice || 0,
-        description: product.description,
-        image: product.image,
+        originalPrice: product.originalPrice || '',
+        description: product.description || '',
+        images: product.images || [''],
         stock: product.stock,
         isActive: product.isActive,
         featured: product.featured,
+        sku: product.sku || '',
+        weight: product.weight || '',
+        tags: product.tags || [],
+        options: [], // TODO: Load from API
       });
     } else {
       setEditingProduct(null);
       setFormData({
         name: '',
-        category: '',
-        price: 0,
-        originalPrice: 0,
+        categoryId: '',
+        price: '',
+        originalPrice: '',
         description: '',
-        image: '',
+        images: [],
         stock: 0,
         isActive: true,
         featured: false,
+        sku: '',
+        weight: '',
+        tags: [],
+        options: [],
       });
     }
     setIsModalOpen(true);
@@ -125,59 +119,115 @@ export const ProductsManagementPage: React.FC = () => {
     setEditingProduct(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const discount = formData.originalPrice > formData.price 
-      ? Math.round(((formData.originalPrice - formData.price) / formData.originalPrice) * 100)
-      : undefined;
+    try {
+      // Validate required fields
+      if (!formData.name.trim()) {
+        alert('Product name is required');
+        return;
+      }
+      
+      if (!formData.categoryId) {
+        alert('Please select a category');
+        return;
+      }
+      
+      if (!formData.price || parseFloat(formData.price) <= 0) {
+        alert('Please enter a valid price');
+        return;
+      }
 
-    if (editingProduct) {
-      setProducts(products.map(prod => 
-        prod.id === editingProduct.id 
-          ? { 
-              ...prod, 
-              ...formData,
-              discount,
-              originalPrice: formData.originalPrice > 0 ? formData.originalPrice : undefined,
-            }
-          : prod
-      ));
-    } else {
-      const newProduct: Product = {
-        id: Date.now().toString(),
-        ...formData,
-        discount,
-        originalPrice: formData.originalPrice > 0 ? formData.originalPrice : undefined,
-        createdAt: new Date().toISOString().split('T')[0],
+      // Extract options from formData to manage them separately
+      const { options, ...productData } = formData;
+      
+      // Clean up the product data
+      const cleanedProductData = {
+        ...productData,
+        originalPrice: productData.originalPrice || undefined,
+        images: productData.images.filter(img => img && img.trim()), // Remove empty images
+        price: productData.price.toString(),
+        stock: Number(productData.stock),
+        description: productData.description.trim() || undefined,
+        sku: productData.sku?.trim() || undefined,
+        weight: productData.weight?.trim() || undefined,
       };
-      setProducts([...products, newProduct]);
+      
+      console.log('Submitting product data:', cleanedProductData);
+      
+      if (editingProduct) {
+        await updateProductMutation.mutateAsync({
+          id: editingProduct.id,
+          data: cleanedProductData
+        });
+      } else {
+        await createProductMutation.mutateAsync(cleanedProductData);
+      }
+      handleCloseModal();
+    } catch (error: any) {
+      console.error('Error saving product:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Unknown error occurred';
+      alert(`Failed to save product: ${errorMessage}`);
     }
-    
-    handleCloseModal();
   };
 
-  const handleDelete = (productId: string) => {
+  const handleDelete = async (productId: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      setProducts(products.filter(prod => prod.id !== productId));
+      try {
+        await deleteProductMutation.mutateAsync(productId);
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Failed to delete product. Please try again.');
+      }
     }
   };
 
-  const handleToggleStatus = (productId: string) => {
-    setProducts(products.map(prod =>
-      prod.id === productId 
-        ? { ...prod, isActive: !prod.isActive }
-        : prod
-    ));
+  const handleToggleStatus = async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      try {
+        await updateProductMutation.mutateAsync({
+          id: productId,
+          data: { isActive: !product.isActive }
+        });
+      } catch (error) {
+        console.error('Error updating product status:', error);
+        alert('Failed to update product status. Please try again.');
+      }
+    }
   };
 
-  const handleToggleFeatured = (productId: string) => {
-    setProducts(products.map(prod =>
-      prod.id === productId 
-        ? { ...prod, featured: !prod.featured }
-        : prod
-    ));
+  const handleToggleFeatured = async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      try {
+        await updateProductMutation.mutateAsync({
+          id: productId,
+          data: { featured: !product.featured }
+        });
+      } catch (error) {
+        console.error('Error updating product featured status:', error);
+        alert('Failed to update product featured status. Please try again.');
+      }
+    }
   };
+
+  if (productsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading products...</div>
+      </div>
+    );
+  }
+
+  if (productsError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-red-600">Error loading products. Please try again.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -230,8 +280,8 @@ export const ProductsManagementPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-12 w-12 flex-shrink-0">
-                        {product.image ? (
-                          <img className="h-12 w-12 rounded-lg object-cover" src={product.image} alt={product.name} />
+                        {product.images?.[0] ? (
+                          <img className="h-12 w-12 rounded-lg object-cover" src={product.images[0]} alt={product.name} />
                         ) : (
                           <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
                             <PhotoIcon className="h-6 w-6 text-gray-400" />
@@ -253,7 +303,7 @@ export const ProductsManagementPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {product.category}
+                      {categories.find(cat => cat.id === product.categoryId)?.name || 'Uncategorized'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -263,7 +313,7 @@ export const ProductsManagementPage: React.FC = () => {
                         <>
                           <span className="text-sm text-gray-500 line-through">${product.originalPrice}</span>
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            {product.discount}% OFF
+                            {Math.round((1 - Number(product.price) / Number(product.originalPrice)) * 100)}% OFF
                           </span>
                         </>
                       )}
@@ -362,19 +412,19 @@ export const ProductsManagementPage: React.FC = () => {
                     </div>
                     
                     <div>
-                      <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
                         Category
                       </label>
                       <select
-                        id="category"
+                        id="categoryId"
                         required
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        value={formData.categoryId}
+                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                         className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       >
                         <option value="">Select category</option>
                         {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
                     </div>
@@ -405,7 +455,7 @@ export const ProductsManagementPage: React.FC = () => {
                         min="0"
                         required
                         value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                         className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
                     </div>
@@ -420,21 +470,23 @@ export const ProductsManagementPage: React.FC = () => {
                         step="0.01"
                         min="0"
                         value={formData.originalPrice}
-                        onChange={(e) => setFormData({ ...formData, originalPrice: parseFloat(e.target.value) || 0 })}
+                        onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
                         className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
                     </div>
                     
                     <div className="sm:col-span-2">
-                      <label htmlFor="image" className="block text-sm font-medium text-gray-700">
-                        Image URL
-                      </label>
-                      <input
-                        type="url"
-                        id="image"
-                        value={formData.image}
-                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      <ImageUpload
+                        currentImage={formData.images[0] || ''}
+                        onImageChange={(imageUrl) => {
+                          // Only add image if it's not empty
+                          if (imageUrl && imageUrl.trim()) {
+                            setFormData({ ...formData, images: [imageUrl] });
+                          } else {
+                            setFormData({ ...formData, images: [] });
+                          }
+                        }}
+                        label="Product Image (Optional)"
                       />
                     </div>
                     
@@ -480,6 +532,14 @@ export const ProductsManagementPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Product Options */}
+                  <ProductOptionsManager
+                    productId={editingProduct?.id}
+                    options={formData.options}
+                    onChange={(options) => setFormData({ ...formData, options })}
+                    className="mt-6"
+                  />
                 </div>
                 
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
@@ -515,8 +575,8 @@ export const ProductsManagementPage: React.FC = () => {
                 
                 <div className="space-y-4">
                   <div className="text-center">
-                    {viewingProduct.image ? (
-                      <img className="h-40 w-40 mx-auto rounded-lg object-cover" src={viewingProduct.image} alt={viewingProduct.name} />
+                    {viewingProduct.images?.[0] ? (
+                      <img className="h-40 w-40 mx-auto rounded-lg object-cover" src={viewingProduct.images[0]} alt={viewingProduct.name} />
                     ) : (
                       <div className="h-40 w-40 mx-auto rounded-lg bg-gray-200 flex items-center justify-center">
                         <PhotoIcon className="h-16 w-16 text-gray-400" />
@@ -531,7 +591,7 @@ export const ProductsManagementPage: React.FC = () => {
                   
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="font-medium">Category:</span> {viewingProduct.category}
+                      <span className="font-medium">Category:</span> {categories.find(cat => cat.id === viewingProduct.categoryId)?.name || 'Uncategorized'}
                     </div>
                     <div>
                       <span className="font-medium">Price:</span> ${viewingProduct.price}

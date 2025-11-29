@@ -4,26 +4,45 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRegister } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
 const formFields = [
   {
     id: "username",
-    label: "User name",
+    label: "Username",
     placeholder: "Enter your username here...",
     required: true,
+    type: "text",
   },
   {
     id: "email",
     label: "Email address",
     placeholder: "Enter your email address here...",
     required: true,
+    type: "email",
+  },
+  {
+    id: "firstName",
+    label: "First name",
+    placeholder: "Enter your first name here...",
+    required: false,
+    type: "text",
+  },
+  {
+    id: "lastName",
+    label: "Last name",
+    placeholder: "Enter your last name here...",
+    required: false,
+    type: "text",
   },
   {
     id: "phone",
     label: "Phone number",
     placeholder: "Enter your phone number here...",
-    required: true,
+    required: false,
+    type: "tel",
   },
   {
     id: "password",
@@ -38,30 +57,54 @@ export const RegisterSection = (): JSX.Element => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     password: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const { register } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const registerMutation = useRegister();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.username || !formData.email || !formData.password) return;
+    setError('');
     
-    setIsLoading(true);
+    if (!formData.username || !formData.email || !formData.password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+    
     try {
-      await register({
-        name: formData.username,
+      await registerMutation.mutateAsync({
+        username: formData.username,
         email: formData.email,
         password: formData.password,
-        phone: formData.phone
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+        phone: formData.phone || undefined,
       });
+      
+      toast({
+        title: "Account created successfully",
+        description: "Welcome to Credify Store!",
+      });
+      
       setLocation('/profile'); // Redirect to profile page
-    } catch (error) {
-      console.error('Registration failed:', error);
-    } finally {
-      setIsLoading(false);
+    } catch (error: any) {
+      setError(error.message || 'Registration failed. Please try again.');
+      toast({
+        title: "Registration failed",
+        description: error.message || "Failed to create account. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -94,6 +137,14 @@ export const RegisterSection = (): JSX.Element => {
 
             {/* Form Fields */}
             <form onSubmit={handleSubmit} className="flex flex-col items-end justify-center gap-4 md:gap-6 relative self-stretch w-full flex-[0_0_auto]">
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center gap-2 w-full p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-700">{error}</span>
+                </div>
+              )}
+
               {formFields.map((field) => (
                 <div
                   key={field.id}
@@ -116,13 +167,28 @@ export const RegisterSection = (): JSX.Element => {
                   <div className="relative self-stretch w-full h-10 md:h-12">
                     <Input
                       id={field.id}
-                      type={field.id === 'password' ? 'password' : field.id === 'email' ? 'email' : 'text'}
+                      type={field.id === 'password' ? (showPassword ? 'text' : 'password') : field.type}
                       value={formData[field.id as keyof typeof formData]}
                       onChange={(e) => handleInputChange(field.id, e.target.value)}
                       required={field.required}
                       placeholder={field.placeholder}
-                      className="w-full h-full bg-[#eeeeee] rounded-xl border border-solid text-[#4e4e4e] [font-family:'Roboto',Helvetica] font-normal text-sm md:text-base tracking-[0.16px] leading-4 px-3 md:px-[15px] py-2 md:py-[15px] placeholder:text-[#4e4e4e]"
+                      className={`w-full h-full bg-[#eeeeee] rounded-xl border border-solid text-[#4e4e4e] [font-family:'Roboto',Helvetica] font-normal text-sm md:text-base tracking-[0.16px] leading-4 px-3 md:px-[15px] py-2 md:py-[15px] placeholder:text-[#4e4e4e] ${field.id === 'password' ? 'pr-12' : ''}`}
                     />
+                    {field.id === 'password' && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-500" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -130,11 +196,11 @@ export const RegisterSection = (): JSX.Element => {
               {/* Sign Up Button */}
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={registerMutation.isPending}
                 className="flex items-center justify-around gap-2.5 px-0 py-3 md:py-4 relative self-stretch w-full flex-[0_0_auto] bg-[#d80027] rounded-xl h-auto hover:bg-[#c00024] disabled:opacity-50"
               >
                 <span className="relative flex items-center justify-center w-fit mt-[-1.00px] [font-family:'Roboto',Helvetica] font-bold text-white text-lg md:text-xl text-center tracking-[0.20px] leading-5 whitespace-nowrap">
-                  {isLoading ? 'Creating Account...' : 'Sign Up'}
+                  {registerMutation.isPending ? 'Creating Account...' : 'Sign Up'}
                 </span>
               </Button>
               
